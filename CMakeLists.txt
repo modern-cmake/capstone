@@ -425,7 +425,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/capstone.pc
 
 install(EXPORT capstone
         DESTINATION ${CAPSTONE_INSTALL_CMAKEDIR}
-        NAMESPACE capstone)
+        NAMESPACE capstone::
+        FILE capstone-config.cmake)
 
 if (BUILD_SHARED_LIBS AND CAPSTONE_BUILD_CSTOOL)
     FILE(GLOB CSTOOL_SRC cstool/*.c)
