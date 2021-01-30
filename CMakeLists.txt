@@ -140,20 +140,6 @@ if (CAPSTONE_ARM_SUPPORT)
         arch/ARM/ARMGenSubtargetInfo.inc
         arch/ARM/ARMInstPrinter.h
         arch/ARM/ARMMapping.h
-        arch/ARM/ARMMappingInsn.inc
-        arch/ARM/ARMMappingInsnOp.inc
-        )
-    set(HEADERS_ARM
-        arch/ARM/ARMAddressingModes.h
-        arch/ARM/ARMBaseInfo.h
-        arch/ARM/ARMDisassembler.h
-        arch/ARM/ARMGenAsmWriter.inc
-        arch/ARM/ARMGenDisassemblerTables.inc
-        arch/ARM/ARMGenInstrInfo.inc
-        arch/ARM/ARMGenRegisterInfo.inc
-        arch/ARM/ARMGenSubtargetInfo.inc
-        arch/ARM/ARMInstPrinter.h
-        arch/ARM/ARMMapping.h
         )
     set(TEST_SOURCES ${TEST_SOURCES} test_arm.c)
 endif ()
@@ -166,19 +152,6 @@ if (CAPSTONE_ARM64_SUPPORT)
         arch/AArch64/AArch64InstPrinter.c
         arch/AArch64/AArch64Mapping.c
         arch/AArch64/AArch64Module.c
-        )
-    set(HEADERS_ARM64
-        arch/AArch64/AArch64AddressingModes.h
-        arch/AArch64/AArch64BaseInfo.h
-        arch/AArch64/AArch64Disassembler.h
-        arch/AArch64/AArch64GenAsmWriter.inc
-        arch/AArch64/AArch64GenDisassemblerTables.inc
-        arch/AArch64/AArch64GenInstrInfo.inc
-        arch/AArch64/AArch64GenRegisterInfo.inc
-        arch/AArch64/AArch64GenSubtargetInfo.inc
-        arch/AArch64/AArch64InstPrinter.h
-        arch/AArch64/AArch64Mapping.h
-        arch/AArch64/AArch64MappingInsn.inc
         )
     set(HEADERS_ARM64
         arch/AArch64/AArch64AddressingModes.h
@@ -212,17 +185,6 @@ if (CAPSTONE_MIPS_SUPPORT)
         arch/Mips/MipsGenSubtargetInfo.inc
         arch/Mips/MipsInstPrinter.h
         arch/Mips/MipsMapping.h
-        arch/Mips/MipsMappingInsn.inc
-        )
-    set(HEADERS_MIPS
-        arch/Mips/MipsDisassembler.h
-        arch/Mips/MipsGenAsmWriter.inc
-        arch/Mips/MipsGenDisassemblerTables.inc
-        arch/Mips/MipsGenInstrInfo.inc
-        arch/Mips/MipsGenRegisterInfo.inc
-        arch/Mips/MipsGenSubtargetInfo.inc
-        arch/Mips/MipsInstPrinter.h
-        arch/Mips/MipsMapping.h
         )
     set(TEST_SOURCES ${TEST_SOURCES} test_mips.c)
 endif ()
@@ -234,18 +196,6 @@ if (CAPSTONE_PPC_SUPPORT)
         arch/PowerPC/PPCInstPrinter.c
         arch/PowerPC/PPCMapping.c
         arch/PowerPC/PPCModule.c
-        )
-    set(HEADERS_PPC
-        arch/PowerPC/PPCDisassembler.h
-        arch/PowerPC/PPCGenAsmWriter.inc
-        arch/PowerPC/PPCGenDisassemblerTables.inc
-        arch/PowerPC/PPCGenInstrInfo.inc
-        arch/PowerPC/PPCGenRegisterInfo.inc
-        arch/PowerPC/PPCGenSubtargetInfo.inc
-        arch/PowerPC/PPCInstPrinter.h
-        arch/PowerPC/PPCMapping.h
-        arch/PowerPC/PPCMappingInsn.inc
-        arch/PowerPC/PPCPredicates.h
         )
     set(HEADERS_PPC
         arch/PowerPC/PPCDisassembler.h
@@ -269,27 +219,6 @@ if (CAPSTONE_X86_SUPPORT)
         arch/X86/X86IntelInstPrinter.c
         arch/X86/X86Mapping.c
         arch/X86/X86Module.c
-        )
-    set(HEADERS_X86
-        arch/X86/X86BaseInfo.h
-        arch/X86/X86Disassembler.h
-        arch/X86/X86DisassemblerDecoder.h
-        arch/X86/X86DisassemblerDecoderCommon.h
-        arch/X86/X86GenAsmWriter.inc
-        arch/X86/X86GenAsmWriter1.inc
-        arch/X86/X86GenAsmWriter1_reduce.inc
-        arch/X86/X86GenAsmWriter_reduce.inc
-        arch/X86/X86GenDisassemblerTables.inc
-        arch/X86/X86GenDisassemblerTables_reduce.inc
-        arch/X86/X86GenInstrInfo.inc
-        arch/X86/X86GenInstrInfo_reduce.inc
-        arch/X86/X86GenRegisterInfo.inc
-        arch/X86/X86InstPrinter.h
-        arch/X86/X86Mapping.h
-        arch/X86/X86MappingInsn.inc
-        arch/X86/X86MappingInsnOp.inc
-        arch/X86/X86MappingInsnOp_reduce.inc
-        arch/X86/X86MappingInsn_reduce.inc
         )
     set(HEADERS_X86
         arch/X86/X86BaseInfo.h
@@ -501,8 +430,6 @@ set(ALL_HEADERS
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 ## properties
-# version info
-set_property(GLOBAL PROPERTY VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 ## targets
 if (CAPSTONE_BUILD_STATIC)
