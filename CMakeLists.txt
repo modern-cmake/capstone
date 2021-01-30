@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(capstone VERSION 5.0.0)
 
-# to configure the options specify them in in the command line or change them in the cmake UI.
-# Don't edit the makefile!
+enable_testing()
+
+## Define command-line options for building Capstone.
+
 option(CAPSTONE_BUILD_STATIC_RUNTIME "Embed static runtime" ON)
 option(CAPSTONE_BUILD_STATIC "Build static library" ON)
 option(CAPSTONE_BUILD_SHARED "Build shared library" ON)
@@ -11,57 +13,55 @@ option(CAPSTONE_BUILD_TESTS "Build tests" ON)
 option(CAPSTONE_BUILD_CSTOOL "Build cstool" ON)
 option(CAPSTONE_USE_DEFAULT_ALLOC "Use default memory allocation functions" ON)
 option(CAPSTONE_ARCHITECTURE_DEFAULT "Whether architectures are enabled by default" ON)
-option(CAPSTONE_INSTALL "Generate install target" ON)
-
-set(SUPPORTED_ARCHITECTURES ARM ARM64 M68K MIPS PPC SPARC SYSZ XCORE X86 TMS320C64X M680X EVM MOS65XX)
-set(SUPPORTED_ARCHITECTURE_LABELS ARM ARM64 M68K MIPS PowerPC Sparc SystemZ XCore x86 TMS320C64x M680x EVM MOS65XX)
-
-list(LENGTH SUPPORTED_ARCHITECTURES count)
-math(EXPR count "${count}-1")
-# create options controlling whether support for a particular architecture is needed
-foreach (i RANGE ${count})
-    list(GET SUPPORTED_ARCHITECTURES ${i} supported_architecture)
-    list(GET SUPPORTED_ARCHITECTURE_LABELS ${i} supported_architecture_label)
-    option("CAPSTONE_${supported_architecture}_SUPPORT" "${supported_architecture_label} support" ${CAPSTONE_ARCHITECTURE_DEFAULT})
-endforeach (i)
-
-# propagate architecture support variables to preprocessor
-foreach (supported_architecture ${SUPPORTED_ARCHITECTURES})
-    set(option_name "CAPSTONE_${supported_architecture}_SUPPORT")
-    if (${option_name})
-        message("Enabling ${option_name}")
-        add_definitions("-D${option_name}")
-    endif ()
-endforeach (supported_architecture)
 
 option(CAPSTONE_X86_REDUCE "x86 with reduce instruction sets to minimize library" OFF)
 option(CAPSTONE_X86_ATT_DISABLE "Disable x86 AT&T syntax" OFF)
 option(CAPSTONE_OSXKERNEL_SUPPORT "Support to embed Capstone into OS X Kernel extensions" OFF)
 
-if (MSVC)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+set(supported_architectures ARM ARM64 M68K MIPS PPC SPARC SYSZ XCORE X86 TMS320C64X M680X EVM MOS65XX)
+foreach (arch IN LISTS supported_architectures)
+    option("CAPSTONE_${arch}_SUPPORT" "${arch} support" ${CAPSTONE_ARCHITECTURE_DEFAULT})
+endforeach ()
+
+## Process options
+
+add_library(capstone_config INTERFACE)
+target_include_directories(capstone_config INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+
+foreach (arch ${supported_architectures})
+    set(option_name "CAPSTONE_${arch}_SUPPORT")
+    if (${option_name})
+        message(STATUS "Enabling ${option_name}")
+        target_compile_definitions(capstone_config INTERFACE ${option_name})
+    endif ()
+endforeach ()
+
+if (CAPSTONE_BUILD_STATIC_RUNTIME)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif ()
 
-enable_testing()
-
 if (CAPSTONE_BUILD_DIET)
-    add_definitions(-DCAPSTONE_DIET)
+    target_compile_definitions(capstone_config INTERFACE CAPSTONE_DIET)
 endif ()
 
 if (CAPSTONE_USE_DEFAULT_ALLOC)
-    add_definitions(-DCAPSTONE_USE_SYS_DYN_MEM)
+    target_compile_definitions(capstone_config INTERFACE CAPSTONE_USE_SYS_DYN_MEM)
 endif ()
 
 if (CAPSTONE_X86_REDUCE)
-    add_definitions(-DCAPSTONE_X86_REDUCE)
+    target_compile_definitions(capstone_config INTERFACE CAPSTONE_X86_REDUCE)
 endif ()
 
 if (CAPSTONE_X86_ATT_DISABLE)
-    add_definitions(-DCAPSTONE_X86_ATT_DISABLE)
+    target_compile_definitions(capstone_config INTERFACE CAPSTONE_X86_ATT_DISABLE)
 endif ()
 
-## sources
+if (CAPSTONE_OSXKERNEL_SUPPORT)
+    target_compile_definitions(capstone_config INTERFACE CAPSTONE_HAS_OSXKERNEL)
+endif ()
+
+## Source lists
+
 set(SOURCES_ENGINE
     cs.c
     MCInst.c
@@ -82,7 +82,6 @@ set(HEADERS_ENGINE
     SStream.h
     utils.h
     )
-
 set(HEADERS_COMMON
     include/capstone/arm64.h
     include/capstone/arm.h
@@ -101,439 +100,337 @@ set(HEADERS_COMMON
     include/capstone/platform.h
     )
 
-set(TEST_SOURCES test_basic.c test_detail.c test_skipdata.c test_iter.c)
+source_group("Source\\Engine" FILES ${SOURCES_ENGINE})
+source_group("Include\\Common" FILES ${HEADERS_COMMON})
+source_group("Include\\Engine" FILES ${HEADERS_ENGINE})
 
-## architecture support
-if (CAPSTONE_ARM_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_ARM)
-    set(SOURCES_ARM
-        arch/ARM/ARMDisassembler.c
-        arch/ARM/ARMInstPrinter.c
-        arch/ARM/ARMMapping.c
-        arch/ARM/ARMModule.c
-        )
-    set(HEADERS_ARM
-        arch/ARM/ARMAddressingModes.h
-        arch/ARM/ARMBaseInfo.h
-        arch/ARM/ARMDisassembler.h
-        arch/ARM/ARMGenAsmWriter.inc
-        arch/ARM/ARMGenDisassemblerTables.inc
-        arch/ARM/ARMGenInstrInfo.inc
-        arch/ARM/ARMGenRegisterInfo.inc
-        arch/ARM/ARMGenSubtargetInfo.inc
-        arch/ARM/ARMInstPrinter.h
-        arch/ARM/ARMMapping.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_arm.c)
-endif ()
+## Create capstone target
 
-if (CAPSTONE_ARM64_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_ARM64)
-    set(SOURCES_ARM64
-        arch/AArch64/AArch64BaseInfo.c
-        arch/AArch64/AArch64Disassembler.c
-        arch/AArch64/AArch64InstPrinter.c
-        arch/AArch64/AArch64Mapping.c
-        arch/AArch64/AArch64Module.c
-        )
-    set(HEADERS_ARM64
-        arch/AArch64/AArch64AddressingModes.h
-        arch/AArch64/AArch64BaseInfo.h
-        arch/AArch64/AArch64Disassembler.h
-        arch/AArch64/AArch64GenAsmWriter.inc
-        arch/AArch64/AArch64GenDisassemblerTables.inc
-        arch/AArch64/AArch64GenInstrInfo.inc
-        arch/AArch64/AArch64GenRegisterInfo.inc
-        arch/AArch64/AArch64GenSubtargetInfo.inc
-        arch/AArch64/AArch64InstPrinter.h
-        arch/AArch64/AArch64Mapping.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_arm64.c)
-endif ()
+add_library(capstone ${SOURCES_ENGINE} ${HEADERS_COMMON} ${HEADERS_ENGINE})
+add_library(capstone::capstone ALIAS capstone)
+set_target_properties(capstone PROPERTIES
+                      OUTPUT_NAME capstone
+                      IMPORT_SUFFIX _dll.lib
+                      VERSION ${PROJECT_VERSION}
+                      SOVERSION ${PROJECT_VERSION_MAJOR})
 
-if (CAPSTONE_MIPS_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_MIPS)
-    set(SOURCES_MIPS
-        arch/Mips/MipsDisassembler.c
-        arch/Mips/MipsInstPrinter.c
-        arch/Mips/MipsMapping.c
-        arch/Mips/MipsModule.c
-        )
-    set(HEADERS_MIPS
-        arch/Mips/MipsDisassembler.h
-        arch/Mips/MipsGenAsmWriter.inc
-        arch/Mips/MipsGenDisassemblerTables.inc
-        arch/Mips/MipsGenInstrInfo.inc
-        arch/Mips/MipsGenRegisterInfo.inc
-        arch/Mips/MipsGenSubtargetInfo.inc
-        arch/Mips/MipsInstPrinter.h
-        arch/Mips/MipsMapping.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_mips.c)
-endif ()
+target_link_libraries(capstone PUBLIC capstone_config)
+target_include_directories(capstone INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+target_compile_definitions(capstone PRIVATE $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:CAPSTONE_SHARED>)
 
-if (CAPSTONE_PPC_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_POWERPC)
-    set(SOURCES_PPC
-        arch/PowerPC/PPCDisassembler.c
-        arch/PowerPC/PPCInstPrinter.c
-        arch/PowerPC/PPCMapping.c
-        arch/PowerPC/PPCModule.c
-        )
-    set(HEADERS_PPC
-        arch/PowerPC/PPCDisassembler.h
-        arch/PowerPC/PPCGenAsmWriter.inc
-        arch/PowerPC/PPCGenDisassemblerTables.inc
-        arch/PowerPC/PPCGenInstrInfo.inc
-        arch/PowerPC/PPCGenRegisterInfo.inc
-        arch/PowerPC/PPCGenSubtargetInfo.inc
-        arch/PowerPC/PPCInstPrinter.h
-        arch/PowerPC/PPCMapping.h
-        arch/PowerPC/PPCPredicates.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_ppc.c)
-endif ()
+## Add architecture modules
 
-if (CAPSTONE_X86_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_X86)
-    set(SOURCES_X86
-        arch/X86/X86Disassembler.c
-        arch/X86/X86DisassemblerDecoder.c
-        arch/X86/X86IntelInstPrinter.c
-        arch/X86/X86Mapping.c
-        arch/X86/X86Module.c
-        )
-    set(HEADERS_X86
-        arch/X86/X86BaseInfo.h
-        arch/X86/X86Disassembler.h
-        arch/X86/X86DisassemblerDecoder.h
-        arch/X86/X86DisassemblerDecoderCommon.h
-        arch/X86/X86GenAsmWriter.inc
-        arch/X86/X86GenAsmWriter1.inc
-        arch/X86/X86GenAsmWriter1_reduce.inc
-        arch/X86/X86GenAsmWriter_reduce.inc
-        arch/X86/X86GenDisassemblerTables.inc
-        arch/X86/X86GenDisassemblerTables_reduce.inc
-        arch/X86/X86GenInstrInfo.inc
-        arch/X86/X86GenInstrInfo_reduce.inc
-        arch/X86/X86GenRegisterInfo.inc
-        arch/X86/X86InstPrinter.h
-        arch/X86/X86Mapping.h
-        )
-    if (NOT CAPSTONE_BUILD_DIET)
-        set(SOURCES_X86 ${SOURCES_X86} arch/X86/X86ATTInstPrinter.c)
+function(add_architecture arch)
+    # Parse arguments and set defaults
+    cmake_parse_arguments("" "" "DEFINE" "SOURCES;HEADERS;TESTS" ${ARGN})
+    if (NOT _TESTS)
+        string(TOLOWER "test_${arch}.c" _TESTS)
     endif ()
-    set(TEST_SOURCES ${TEST_SOURCES} test_x86.c test_customized_mnem.c)
-endif ()
-
-if (CAPSTONE_SPARC_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_SPARC)
-    set(SOURCES_SPARC
-        arch/Sparc/SparcDisassembler.c
-        arch/Sparc/SparcInstPrinter.c
-        arch/Sparc/SparcMapping.c
-        arch/Sparc/SparcModule.c
-        )
-    set(HEADERS_SPARC
-        arch/Sparc/Sparc.h
-        arch/Sparc/SparcDisassembler.h
-        arch/Sparc/SparcGenAsmWriter.inc
-        arch/Sparc/SparcGenDisassemblerTables.inc
-        arch/Sparc/SparcGenInstrInfo.inc
-        arch/Sparc/SparcGenRegisterInfo.inc
-        arch/Sparc/SparcGenSubtargetInfo.inc
-        arch/Sparc/SparcInstPrinter.h
-        arch/Sparc/SparcMapping.h
-        arch/Sparc/SparcMappingInsn.inc
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_sparc.c)
-endif ()
-
-if (CAPSTONE_SYSZ_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_SYSZ)
-    set(SOURCES_SYSZ
-        arch/SystemZ/SystemZDisassembler.c
-        arch/SystemZ/SystemZInstPrinter.c
-        arch/SystemZ/SystemZMapping.c
-        arch/SystemZ/SystemZModule.c
-        arch/SystemZ/SystemZMCTargetDesc.c
-        )
-    set(HEADERS_SYSZ
-        arch/SystemZ/SystemZDisassembler.h
-        arch/SystemZ/SystemZGenAsmWriter.inc
-        arch/SystemZ/SystemZGenDisassemblerTables.inc
-        arch/SystemZ/SystemZGenInsnNameMaps.inc
-        arch/SystemZ/SystemZGenInstrInfo.inc
-        arch/SystemZ/SystemZGenRegisterInfo.inc
-        arch/SystemZ/SystemZGenSubtargetInfo.inc
-        arch/SystemZ/SystemZInstPrinter.h
-        arch/SystemZ/SystemZMapping.h
-        arch/SystemZ/SystemZMappingInsn.inc
-        arch/SystemZ/SystemZMCTargetDesc.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_systemz.c)
-endif ()
-
-if (CAPSTONE_XCORE_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_XCORE)
-    set(SOURCES_XCORE
-        arch/XCore/XCoreDisassembler.c
-        arch/XCore/XCoreInstPrinter.c
-        arch/XCore/XCoreMapping.c
-        arch/XCore/XCoreModule.c
-        )
-    set(HEADERS_XCORE
-        arch/XCore/XCoreDisassembler.h
-        arch/XCore/XCoreGenAsmWriter.inc
-        arch/XCore/XCoreGenDisassemblerTables.inc
-        arch/XCore/XCoreGenInstrInfo.inc
-        arch/XCore/XCoreGenRegisterInfo.inc
-        arch/XCore/XCoreInstPrinter.h
-        arch/XCore/XCoreMapping.h
-        arch/XCore/XCoreMappingInsn.inc
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_xcore.c)
-endif ()
-
-if (CAPSTONE_M68K_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_M68K)
-    set(SOURCES_M68K
-        arch/M68K/M68KDisassembler.c
-        arch/M68K/M68KInstPrinter.c
-        arch/M68K/M68KModule.c
-        )
-    set(HEADERS_M68K
-        arch/M68K/M68KDisassembler.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_m68k.c)
-endif ()
-
-if (CAPSTONE_TMS320C64X_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_TMS320C64X)
-    set(SOURCES_TMS320C64X
-        arch/TMS320C64x/TMS320C64xDisassembler.c
-        arch/TMS320C64x/TMS320C64xInstPrinter.c
-        arch/TMS320C64x/TMS320C64xMapping.c
-        arch/TMS320C64x/TMS320C64xModule.c
-        )
-    set(HEADERS_TMS320C64X
-        arch/TMS320C64x/TMS320C64xDisassembler.h
-        arch/TMS320C64x/TMS320C64xGenAsmWriter.inc
-        arch/TMS320C64x/TMS320C64xGenDisassemblerTables.inc
-        arch/TMS320C64x/TMS320C64xGenInstrInfo.inc
-        arch/TMS320C64x/TMS320C64xGenRegisterInfo.inc
-        arch/TMS320C64x/TMS320C64xInstPrinter.h
-        arch/TMS320C64x/TMS320C64xMapping.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_tms320c64x.c)
-endif ()
-
-if (CAPSTONE_M680X_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_M680X)
-    set(SOURCES_M680X
-        arch/M680X/M680XDisassembler.c
-        arch/M680X/M680XInstPrinter.c
-        arch/M680X/M680XModule.c
-        )
-    set(HEADERS_M680X
-        arch/M680X/M680XInstPrinter.h
-        arch/M680X/M680XDisassembler.h
-        arch/M680X/M680XDisassemblerInternals.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_m680x.c)
-endif ()
-
-if (CAPSTONE_EVM_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_EVM)
-    set(SOURCES_EVM
-        arch/EVM/EVMDisassembler.c
-        arch/EVM/EVMInstPrinter.c
-        arch/EVM/EVMMapping.c
-        arch/EVM/EVMModule.c
-        )
-    set(HEADERS_EVM
-        arch/EVM/EVMDisassembler.h
-        arch/EVM/EVMInstPrinter.h
-        arch/EVM/EVMMapping.h
-        arch/EVM/EVMMappingInsn.inc
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_evm.c)
-endif ()
-
-if (CAPSTONE_MOS65XX_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_MOS65XX)
-    set(SOURCES_MOS65XX
-        arch/MOS65XX/MOS65XXModule.c
-        arch/MOS65XX/MOS65XXDisassembler.c)
-    set(HEADERS_SOURCES_MOS65XX
-        arch/MOS65XX/MOS65XXDisassembler.h
-        )
-    set(TEST_SOURCES ${TEST_SOURCES} test_mos65xx.c)
-endif ()
-
-if (CAPSTONE_OSXKERNEL_SUPPORT)
-    add_definitions(-DCAPSTONE_HAS_OSXKERNEL)
-endif ()
-
-set(ALL_SOURCES
-    ${SOURCES_ENGINE}
-    ${SOURCES_ARM}
-    ${SOURCES_ARM64}
-    ${SOURCES_MIPS}
-    ${SOURCES_PPC}
-    ${SOURCES_X86}
-    ${SOURCES_SPARC}
-    ${SOURCES_SYSZ}
-    ${SOURCES_XCORE}
-    ${SOURCES_M68K}
-    ${SOURCES_TMS320C64X}
-    ${SOURCES_M680X}
-    ${SOURCES_EVM}
-    ${SOURCES_MOS65XX}
-    )
-
-set(ALL_HEADERS
-    ${HEADERS_COMMON}
-    ${HEADERS_ENGINE}
-    ${HEADERS_ARM}
-    ${HEADERS_ARM64}
-    ${HEADERS_MIPS}
-    ${HEADERS_PPC}
-    ${HEADERS_X86}
-    ${HEADERS_SPARC}
-    ${HEADERS_SYSZ}
-    ${HEADERS_XCORE}
-    ${HEADERS_M68K}
-    ${HEADERS_TMS320C64X}
-    ${HEADERS_M680X}
-    ${HEADERS_EVM}
-    ${HEADERS_MOS65XX}
-    )
-
-include_directories("${PROJECT_SOURCE_DIR}/include")
-
-## properties
-
-## targets
-if (CAPSTONE_BUILD_STATIC)
-    add_library(capstone-static STATIC ${ALL_SOURCES} ${ALL_HEADERS})
-    set_property(TARGET capstone-static PROPERTY OUTPUT_NAME capstone)
-    set(default-target capstone-static)
-endif ()
-
-# Force static runtime libraries
-if (CAPSTONE_BUILD_STATIC_RUNTIME)
-    FOREACH (flag
-             CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO
-             CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT
-             CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO
-             CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG_INIT)
-        if (MSVC)
-            STRING(REPLACE "/MD" "/MT" "${flag}" "${${flag}}")
-            SET("${flag}" "${${flag}} /EHsc")
-        endif (MSVC)
-    ENDFOREACH ()
-endif ()
-
-if (CAPSTONE_BUILD_SHARED)
-    add_library(capstone-shared SHARED ${ALL_SOURCES} ${ALL_HEADERS})
-    set_property(TARGET capstone-shared PROPERTY OUTPUT_NAME capstone)
-    set_property(TARGET capstone-shared PROPERTY COMPILE_FLAGS -DCAPSTONE_SHARED)
-
-    if (MSVC)
-        set_target_properties(capstone-shared PROPERTIES IMPORT_SUFFIX _dll.lib)
-    else ()
-        set_target_properties(capstone-shared PROPERTIES
-                              VERSION ${PROJECT_VERSION}
-                              SOVERSION ${PROJECT_VERSION_MAJOR})
+    if (NOT _DEFINE)
+        set(_DEFINE "CAPSTONE_HAS_${arch}")
     endif ()
 
-    if (NOT DEFINED default-target)      # honor `capstone-static` for tests first.
-        set(default-target capstone-shared)
-        add_definitions(-DCAPSTONE_SHARED)
+    # Bail out if architecture disabled
+    if (NOT CAPSTONE_${arch}_SUPPORT)
+        return()
     endif ()
-endif ()
+
+    # Add arch objects
+    add_library(capstone_${arch} OBJECT ${_SOURCES} ${_HEADERS})
+    set_target_properties(capstone_${arch} PROPERTIES FOLDER "Arch/${arch}")
+    target_link_libraries(capstone_${arch} PRIVATE capstone_config)
+
+    # Update config
+    target_compile_definitions(capstone_config INTERFACE ${_DEFINE})
+
+    # Add arch to capstone
+    target_link_libraries(capstone PUBLIC $<BUILD_INTERFACE:capstone_${arch}>)
+
+    # Add tests for arch
+    if (CAPSTONE_BUILD_TESTS)
+        foreach (test IN LISTS _TESTS)
+            string(REGEX REPLACE ".c$" "" test_name ${test})
+            add_executable(${test_name} "tests/${test}")
+            target_link_libraries(${test_name} PRIVATE capstone::capstone)
+            add_test(NAME "capstone_${test_name}" COMMAND ${test_name})
+        endforeach ()
+    endif ()
+endfunction()
+
+add_architecture(ARM
+                 SOURCES
+                 arch/ARM/ARMDisassembler.c
+                 arch/ARM/ARMInstPrinter.c
+                 arch/ARM/ARMMapping.c
+                 arch/ARM/ARMModule.c
+                 HEADERS
+                 arch/ARM/ARMAddressingModes.h
+                 arch/ARM/ARMBaseInfo.h
+                 arch/ARM/ARMDisassembler.h
+                 arch/ARM/ARMGenAsmWriter.inc
+                 arch/ARM/ARMGenDisassemblerTables.inc
+                 arch/ARM/ARMGenInstrInfo.inc
+                 arch/ARM/ARMGenRegisterInfo.inc
+                 arch/ARM/ARMGenSubtargetInfo.inc
+                 arch/ARM/ARMInstPrinter.h
+                 arch/ARM/ARMMapping.h
+                 )
+
+add_architecture(ARM64
+                 SOURCES
+                 arch/AArch64/AArch64BaseInfo.c
+                 arch/AArch64/AArch64Disassembler.c
+                 arch/AArch64/AArch64InstPrinter.c
+                 arch/AArch64/AArch64Mapping.c
+                 arch/AArch64/AArch64Module.c
+                 HEADERS
+                 arch/AArch64/AArch64AddressingModes.h
+                 arch/AArch64/AArch64BaseInfo.h
+                 arch/AArch64/AArch64Disassembler.h
+                 arch/AArch64/AArch64GenAsmWriter.inc
+                 arch/AArch64/AArch64GenDisassemblerTables.inc
+                 arch/AArch64/AArch64GenInstrInfo.inc
+                 arch/AArch64/AArch64GenRegisterInfo.inc
+                 arch/AArch64/AArch64GenSubtargetInfo.inc
+                 arch/AArch64/AArch64InstPrinter.h
+                 arch/AArch64/AArch64Mapping.h
+                 )
+
+add_architecture(MIPS
+                 SOURCES
+                 arch/Mips/MipsDisassembler.c
+                 arch/Mips/MipsInstPrinter.c
+                 arch/Mips/MipsMapping.c
+                 arch/Mips/MipsModule.c
+                 HEADERS
+                 arch/Mips/MipsDisassembler.h
+                 arch/Mips/MipsGenAsmWriter.inc
+                 arch/Mips/MipsGenDisassemblerTables.inc
+                 arch/Mips/MipsGenInstrInfo.inc
+                 arch/Mips/MipsGenRegisterInfo.inc
+                 arch/Mips/MipsGenSubtargetInfo.inc
+                 arch/Mips/MipsInstPrinter.h
+                 arch/Mips/MipsMapping.h
+                 )
+
+add_architecture(PPC
+                 DEFINE CAPSTONE_HAS_POWERPC
+                 SOURCES
+                 arch/PowerPC/PPCDisassembler.c
+                 arch/PowerPC/PPCInstPrinter.c
+                 arch/PowerPC/PPCMapping.c
+                 arch/PowerPC/PPCModule.c
+                 HEADERS
+                 arch/PowerPC/PPCDisassembler.h
+                 arch/PowerPC/PPCGenAsmWriter.inc
+                 arch/PowerPC/PPCGenDisassemblerTables.inc
+                 arch/PowerPC/PPCGenInstrInfo.inc
+                 arch/PowerPC/PPCGenRegisterInfo.inc
+                 arch/PowerPC/PPCGenSubtargetInfo.inc
+                 arch/PowerPC/PPCInstPrinter.h
+                 arch/PowerPC/PPCMapping.h
+                 arch/PowerPC/PPCPredicates.h
+                 )
+
+add_architecture(X86
+                 TESTS test_x86.c test_customized_mnem.c
+                 SOURCES
+                 arch/X86/X86Disassembler.c
+                 arch/X86/X86DisassemblerDecoder.c
+                 arch/X86/X86IntelInstPrinter.c
+                 arch/X86/X86Mapping.c
+                 arch/X86/X86Module.c
+                 $<$<NOT:$<BOOL:${CAPSTONE_BUILD_DIET}>>:arch/X86/X86ATTInstPrinter.c>
+                 HEADERS
+                 arch/X86/X86BaseInfo.h
+                 arch/X86/X86Disassembler.h
+                 arch/X86/X86DisassemblerDecoder.h
+                 arch/X86/X86DisassemblerDecoderCommon.h
+                 arch/X86/X86GenAsmWriter.inc
+                 arch/X86/X86GenAsmWriter1.inc
+                 arch/X86/X86GenAsmWriter1_reduce.inc
+                 arch/X86/X86GenAsmWriter_reduce.inc
+                 arch/X86/X86GenDisassemblerTables.inc
+                 arch/X86/X86GenDisassemblerTables_reduce.inc
+                 arch/X86/X86GenInstrInfo.inc
+                 arch/X86/X86GenInstrInfo_reduce.inc
+                 arch/X86/X86GenRegisterInfo.inc
+                 arch/X86/X86InstPrinter.h
+                 arch/X86/X86Mapping.h
+                 )
+
+add_architecture(SPARC
+                 SOURCES
+                 arch/Sparc/SparcDisassembler.c
+                 arch/Sparc/SparcInstPrinter.c
+                 arch/Sparc/SparcMapping.c
+                 arch/Sparc/SparcModule.c
+                 HEADERS
+                 arch/Sparc/Sparc.h
+                 arch/Sparc/SparcDisassembler.h
+                 arch/Sparc/SparcGenAsmWriter.inc
+                 arch/Sparc/SparcGenDisassemblerTables.inc
+                 arch/Sparc/SparcGenInstrInfo.inc
+                 arch/Sparc/SparcGenRegisterInfo.inc
+                 arch/Sparc/SparcGenSubtargetInfo.inc
+                 arch/Sparc/SparcInstPrinter.h
+                 arch/Sparc/SparcMapping.h
+                 arch/Sparc/SparcMappingInsn.inc
+                 )
+
+add_architecture(SYSZ
+                 TESTS test_systemz.c
+                 SOURCES
+                 arch/SystemZ/SystemZDisassembler.c
+                 arch/SystemZ/SystemZInstPrinter.c
+                 arch/SystemZ/SystemZMapping.c
+                 arch/SystemZ/SystemZModule.c
+                 arch/SystemZ/SystemZMCTargetDesc.c
+                 HEADERS
+                 arch/SystemZ/SystemZDisassembler.h
+                 arch/SystemZ/SystemZGenAsmWriter.inc
+                 arch/SystemZ/SystemZGenDisassemblerTables.inc
+                 arch/SystemZ/SystemZGenInsnNameMaps.inc
+                 arch/SystemZ/SystemZGenInstrInfo.inc
+                 arch/SystemZ/SystemZGenRegisterInfo.inc
+                 arch/SystemZ/SystemZGenSubtargetInfo.inc
+                 arch/SystemZ/SystemZInstPrinter.h
+                 arch/SystemZ/SystemZMapping.h
+                 arch/SystemZ/SystemZMappingInsn.inc
+                 arch/SystemZ/SystemZMCTargetDesc.h
+                 )
+
+add_architecture(XCORE
+                 SOURCES
+                 arch/XCore/XCoreDisassembler.c
+                 arch/XCore/XCoreInstPrinter.c
+                 arch/XCore/XCoreMapping.c
+                 arch/XCore/XCoreModule.c
+                 HEADERS
+                 arch/XCore/XCoreDisassembler.h
+                 arch/XCore/XCoreGenAsmWriter.inc
+                 arch/XCore/XCoreGenDisassemblerTables.inc
+                 arch/XCore/XCoreGenInstrInfo.inc
+                 arch/XCore/XCoreGenRegisterInfo.inc
+                 arch/XCore/XCoreInstPrinter.h
+                 arch/XCore/XCoreMapping.h
+                 arch/XCore/XCoreMappingInsn.inc
+                 )
+
+add_architecture(M68K
+                 SOURCES
+                 arch/M68K/M68KDisassembler.c
+                 arch/M68K/M68KInstPrinter.c
+                 arch/M68K/M68KModule.c
+                 HEADERS
+                 arch/M68K/M68KDisassembler.h
+                 )
+
+add_architecture(TMS320C64X
+                 SOURCES
+                 arch/TMS320C64x/TMS320C64xDisassembler.c
+                 arch/TMS320C64x/TMS320C64xInstPrinter.c
+                 arch/TMS320C64x/TMS320C64xMapping.c
+                 arch/TMS320C64x/TMS320C64xModule.c
+                 HEADERS
+                 arch/TMS320C64x/TMS320C64xDisassembler.h
+                 arch/TMS320C64x/TMS320C64xGenAsmWriter.inc
+                 arch/TMS320C64x/TMS320C64xGenDisassemblerTables.inc
+                 arch/TMS320C64x/TMS320C64xGenInstrInfo.inc
+                 arch/TMS320C64x/TMS320C64xGenRegisterInfo.inc
+                 arch/TMS320C64x/TMS320C64xInstPrinter.h
+                 arch/TMS320C64x/TMS320C64xMapping.h
+                 )
+
+add_architecture(M680X
+                 SOURCES
+                 arch/M680X/M680XDisassembler.c
+                 arch/M680X/M680XInstPrinter.c
+                 arch/M680X/M680XModule.c
+                 HEADERS
+                 arch/M680X/M680XInstPrinter.h
+                 arch/M680X/M680XDisassembler.h
+                 arch/M680X/M680XDisassemblerInternals.h
+                 )
+
+add_architecture(EVM
+                 SOURCES
+                 arch/EVM/EVMDisassembler.c
+                 arch/EVM/EVMInstPrinter.c
+                 arch/EVM/EVMMapping.c
+                 arch/EVM/EVMModule.c
+                 HEADERS
+                 arch/EVM/EVMDisassembler.h
+                 arch/EVM/EVMInstPrinter.h
+                 arch/EVM/EVMMapping.h
+                 arch/EVM/EVMMappingInsn.inc
+                 )
+
+add_architecture(MOS65XX
+                 SOURCES
+                 arch/MOS65XX/MOS65XXModule.c
+                 arch/MOS65XX/MOS65XXDisassembler.c
+                 HEADERS
+                 arch/MOS65XX/MOS65XXDisassembler.h
+                 )
+
+## Testing
 
 if (CAPSTONE_BUILD_TESTS)
-    foreach (TSRC ${TEST_SOURCES})
-        STRING(REGEX REPLACE ".c$" "" TBIN ${TSRC})
-        add_executable(${TBIN} "tests/${TSRC}")
-        target_link_libraries(${TBIN} ${default-target})
-        add_test(NAME "capstone_${TBIN}" COMMAND ${TBIN})
-    endforeach ()
+    # Add general tests
+    add_executable(test_basic tests/test_basic.c)
+    target_link_libraries(test_basic PRIVATE capstone::capstone)
+    add_test(NAME capstone_test_basic COMMAND test_basic)
+
+    add_executable(test_detail tests/test_detail.c)
+    target_link_libraries(test_detail PRIVATE capstone::capstone)
+    add_test(NAME capstone_test_detail COMMAND test_detail)
+
+    add_executable(test_skipdata tests/test_skipdata.c)
+    target_link_libraries(test_skipdata PRIVATE capstone::capstone)
+    add_test(NAME capstone_test_skipdata COMMAND test_skipdata)
+
+    add_executable(test_iter tests/test_iter.c)
+    target_link_libraries(test_iter PRIVATE capstone::capstone)
+    add_test(NAME capstone_test_iter COMMAND test_iter)
+
     if (CAPSTONE_ARM_SUPPORT)
         set(ARM_REGRESS_TEST test_arm_regression.c)
         STRING(REGEX REPLACE ".c$" "" ARM_REGRESS_BIN ${ARM_REGRESS_TEST})
         add_executable(${ARM_REGRESS_BIN} "suite/arm/${ARM_REGRESS_TEST}")
-        target_link_libraries(${ARM_REGRESS_BIN} ${default-target})
+        target_link_libraries(${ARM_REGRESS_BIN} PRIVATE capstone::capstone)
         add_test(NAME "capstone_${ARM_REGRESS_BIN}" COMMAND ${ARM_REGRESS_BIN})
     endif ()
+
     # fuzz target built with the tests
     add_executable(fuzz_disasm suite/fuzz/onefile.c suite/fuzz/fuzz_disasm.c)
-    target_link_libraries(fuzz_disasm ${default-target})
+    target_link_libraries(fuzz_disasm PRIVATE capstone::capstone)
 endif ()
 
-source_group("Source\\Engine" FILES ${SOURCES_ENGINE})
-source_group("Source\\ARM" FILES ${SOURCES_ARM})
-source_group("Source\\ARM64" FILES ${SOURCES_ARM64})
-source_group("Source\\Mips" FILES ${SOURCES_MIPS})
-source_group("Source\\PowerPC" FILES ${SOURCES_PPC})
-source_group("Source\\Sparc" FILES ${SOURCES_SPARC})
-source_group("Source\\SystemZ" FILES ${SOURCES_SYSZ})
-source_group("Source\\X86" FILES ${SOURCES_X86})
-source_group("Source\\XCore" FILES ${SOURCES_XCORE})
-source_group("Source\\M68K" FILES ${SOURCES_M68K})
-source_group("Source\\TMS320C64x" FILES ${SOURCES_TMS320C64X})
-source_group("Source\\M680X" FILES ${SOURCES_M680X})
-source_group("Source\\EVM" FILES ${SOURCES_EVM})
-source_group("Source\\MOS65XX" FILES ${SOURCES_MOS65XX})
+## Installation
 
-source_group("Include\\Common" FILES ${HEADERS_COMMON})
-source_group("Include\\Engine" FILES ${HEADERS_ENGINE})
-source_group("Include\\ARM" FILES ${HEADERS_ARM})
-source_group("Include\\ARM64" FILES ${HEADERS_ARM64})
-source_group("Include\\Mips" FILES ${HEADERS_MIPS})
-source_group("Include\\PowerPC" FILES ${HEADERS_PPC})
-source_group("Include\\Sparc" FILES ${HEADERS_SPARC})
-source_group("Include\\SystemZ" FILES ${HEADERS_SYSZ})
-source_group("Include\\X86" FILES ${HEADERS_X86})
-source_group("Include\\XCore" FILES ${HEADERS_XCORE})
-source_group("Include\\M68K" FILES ${HEADERS_M68K})
-source_group("Include\\TMS320C64x" FILES ${HEADERS_TMS320C64X})
-source_group("Include\\M680X" FILES ${HEADERS_MC680X})
-source_group("Include\\EVM" FILES ${HEADERS_EVM})
-source_group("Include\\MOS65XX" FILES ${HEADERS_MOS65XX})
+include(GNUInstallDirs)
+set(CAPSTONE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/capstone"
+    CACHE STRING "Install destination for CMake package scripts")
 
-### test library 64bit routine:
-include("GNUInstallDirs")
+install(TARGETS capstone capstone_config
+        EXPORT capstone
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(FILES ${HEADERS_COMMON}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/capstone)
 
-## installation
-if (CAPSTONE_INSTALL)
-    install(FILES ${HEADERS_COMMON} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/capstone)
-endif ()
-configure_file(capstone.pc.in ${CMAKE_BINARY_DIR}/capstone.pc @ONLY)
+configure_file(capstone.pc.in ${CMAKE_CURRENT_BINARY_DIR}/capstone.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/capstone.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
-if (CAPSTONE_BUILD_STATIC AND CAPSTONE_INSTALL)
-    install(TARGETS capstone-static
-            RUNTIME DESTINATION bin
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif ()
+install(EXPORT capstone
+        DESTINATION ${CAPSTONE_INSTALL_CMAKEDIR}
+        NAMESPACE capstone)
 
-if (CAPSTONE_BUILD_SHARED AND CAPSTONE_INSTALL)
-    install(TARGETS capstone-shared
-            RUNTIME DESTINATION bin
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif ()
-
-if (CAPSTONE_BUILD_SHARED AND CAPSTONE_BUILD_CSTOOL)
+if (BUILD_SHARED_LIBS AND CAPSTONE_BUILD_CSTOOL)
     FILE(GLOB CSTOOL_SRC cstool/*.c)
     add_executable(cstool ${CSTOOL_SRC})
-    target_link_libraries(cstool ${default-target})
+    target_link_libraries(cstool PRIVATE capstone::capstone)
 
-    if (CAPSTONE_INSTALL)
-        install(TARGETS cstool DESTINATION bin)
-        install(FILES ${CMAKE_BINARY_DIR}/capstone.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
-    endif ()
+    install(TARGETS cstool)
 endif ()
