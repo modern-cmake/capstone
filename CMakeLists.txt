@@ -5,18 +5,18 @@ set(VERSION_MAJOR 5)
 set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 
-if(POLICY CMP0042)
-  # http://www.cmake.org/cmake/help/v3.0/policy/CMP0042.html
-  cmake_policy(SET CMP0042 NEW)
-endif(POLICY CMP0042)
+if (POLICY CMP0042)
+    # http://www.cmake.org/cmake/help/v3.0/policy/CMP0042.html
+    cmake_policy(SET CMP0042 NEW)
+endif (POLICY CMP0042)
 
 if (POLICY CMP0048)
-  # use old policy to honor version set using VERSION_* variables to preserve backwards
-  # compatibility. change OLD to NEW when minimum cmake version is updated to 3.* and
-  # set VERSION using project(capstone VERSION 4.0.0).
-  # http://www.cmake.org/cmake/help/v3.0/policy/CMP0048.html
-  cmake_policy (SET CMP0048 OLD)
-endif()
+    # use old policy to honor version set using VERSION_* variables to preserve backwards
+    # compatibility. change OLD to NEW when minimum cmake version is updated to 3.* and
+    # set VERSION using project(capstone VERSION 4.0.0).
+    # http://www.cmake.org/cmake/help/v3.0/policy/CMP0048.html
+    cmake_policy(SET CMP0048 OLD)
+endif ()
 
 # to configure the options specify them in in the command line or change them in the cmake UI.
 # Don't edit the makefile!
@@ -36,20 +36,20 @@ set(SUPPORTED_ARCHITECTURE_LABELS ARM ARM64 M68K MIPS PowerPC Sparc SystemZ XCor
 list(LENGTH SUPPORTED_ARCHITECTURES count)
 math(EXPR count "${count}-1")
 # create options controlling whether support for a particular architecture is needed
-foreach(i RANGE ${count})
-  list(GET SUPPORTED_ARCHITECTURES ${i} supported_architecture)
-  list(GET SUPPORTED_ARCHITECTURE_LABELS ${i} supported_architecture_label)
-  option("CAPSTONE_${supported_architecture}_SUPPORT" "${supported_architecture_label} support" ${CAPSTONE_ARCHITECTURE_DEFAULT})
-endforeach(i)
+foreach (i RANGE ${count})
+    list(GET SUPPORTED_ARCHITECTURES ${i} supported_architecture)
+    list(GET SUPPORTED_ARCHITECTURE_LABELS ${i} supported_architecture_label)
+    option("CAPSTONE_${supported_architecture}_SUPPORT" "${supported_architecture_label} support" ${CAPSTONE_ARCHITECTURE_DEFAULT})
+endforeach (i)
 
 # propagate architecture support variables to preprocessor
-foreach(supported_architecture ${SUPPORTED_ARCHITECTURES})
-  set(option_name "CAPSTONE_${supported_architecture}_SUPPORT")
-  if(${option_name})
-    message("Enabling ${option_name}")
-    add_definitions("-D${option_name}")
-  endif()
-endforeach(supported_architecture)
+foreach (supported_architecture ${SUPPORTED_ARCHITECTURES})
+    set(option_name "CAPSTONE_${supported_architecture}_SUPPORT")
+    if (${option_name})
+        message("Enabling ${option_name}")
+        add_definitions("-D${option_name}")
+    endif ()
+endforeach (supported_architecture)
 
 option(CAPSTONE_X86_REDUCE "x86 with reduce instruction sets to minimize library" OFF)
 option(CAPSTONE_X86_ATT_DISABLE "Disable x86 AT&T syntax" OFF)
@@ -86,7 +86,7 @@ set(SOURCES_ENGINE
     MCRegisterInfo.c
     SStream.c
     utils.c
-)
+    )
 set(HEADERS_ENGINE
     cs_priv.h
     LEB128.h
@@ -128,7 +128,7 @@ if (CAPSTONE_ARM_SUPPORT)
         arch/ARM/ARMInstPrinter.c
         arch/ARM/ARMMapping.c
         arch/ARM/ARMModule.c
-    )
+        )
     set(HEADERS_ARM
         arch/ARM/ARMAddressingModes.h
         arch/ARM/ARMBaseInfo.h
@@ -166,7 +166,7 @@ if (CAPSTONE_ARM64_SUPPORT)
         arch/AArch64/AArch64InstPrinter.c
         arch/AArch64/AArch64Mapping.c
         arch/AArch64/AArch64Module.c
-    )
+        )
     set(HEADERS_ARM64
         arch/AArch64/AArch64AddressingModes.h
         arch/AArch64/AArch64BaseInfo.h
@@ -202,7 +202,7 @@ if (CAPSTONE_MIPS_SUPPORT)
         arch/Mips/MipsInstPrinter.c
         arch/Mips/MipsMapping.c
         arch/Mips/MipsModule.c
-    )
+        )
     set(HEADERS_MIPS
         arch/Mips/MipsDisassembler.h
         arch/Mips/MipsGenAsmWriter.inc
@@ -234,7 +234,7 @@ if (CAPSTONE_PPC_SUPPORT)
         arch/PowerPC/PPCInstPrinter.c
         arch/PowerPC/PPCMapping.c
         arch/PowerPC/PPCModule.c
-    )
+        )
     set(HEADERS_PPC
         arch/PowerPC/PPCDisassembler.h
         arch/PowerPC/PPCGenAsmWriter.inc
@@ -269,7 +269,7 @@ if (CAPSTONE_X86_SUPPORT)
         arch/X86/X86IntelInstPrinter.c
         arch/X86/X86Mapping.c
         arch/X86/X86Module.c
-    )
+        )
     set(HEADERS_X86
         arch/X86/X86BaseInfo.h
         arch/X86/X86Disassembler.h
@@ -386,12 +386,12 @@ endif ()
 if (CAPSTONE_M68K_SUPPORT)
     add_definitions(-DCAPSTONE_HAS_M68K)
     set(SOURCES_M68K
-		arch/M68K/M68KDisassembler.c
-		arch/M68K/M68KInstPrinter.c
-		arch/M68K/M68KModule.c
-    )
+        arch/M68K/M68KDisassembler.c
+        arch/M68K/M68KInstPrinter.c
+        arch/M68K/M68KModule.c
+        )
     set(HEADERS_M68K
-		arch/M68K/M68KDisassembler.h
+        arch/M68K/M68KDisassembler.h
         )
     set(TEST_SOURCES ${TEST_SOURCES} test_m68k.c)
 endif ()
@@ -419,14 +419,14 @@ endif ()
 if (CAPSTONE_M680X_SUPPORT)
     add_definitions(-DCAPSTONE_HAS_M680X)
     set(SOURCES_M680X
-		arch/M680X/M680XDisassembler.c
-		arch/M680X/M680XInstPrinter.c
-		arch/M680X/M680XModule.c
-    )
+        arch/M680X/M680XDisassembler.c
+        arch/M680X/M680XInstPrinter.c
+        arch/M680X/M680XModule.c
+        )
     set(HEADERS_M680X
-		arch/M680X/M680XInstPrinter.h
-		arch/M680X/M680XDisassembler.h
-		arch/M680X/M680XDisassemblerInternals.h
+        arch/M680X/M680XInstPrinter.h
+        arch/M680X/M680XDisassembler.h
+        arch/M680X/M680XDisassemblerInternals.h
         )
     set(TEST_SOURCES ${TEST_SOURCES} test_m680x.c)
 endif ()
@@ -438,7 +438,7 @@ if (CAPSTONE_EVM_SUPPORT)
         arch/EVM/EVMInstPrinter.c
         arch/EVM/EVMMapping.c
         arch/EVM/EVMModule.c
-    )
+        )
     set(HEADERS_EVM
         arch/EVM/EVMDisassembler.h
         arch/EVM/EVMInstPrinter.h
@@ -451,11 +451,11 @@ endif ()
 if (CAPSTONE_MOS65XX_SUPPORT)
     add_definitions(-DCAPSTONE_HAS_MOS65XX)
     set(SOURCES_MOS65XX
-            arch/MOS65XX/MOS65XXModule.c
-            arch/MOS65XX/MOS65XXDisassembler.c)
+        arch/MOS65XX/MOS65XXModule.c
+        arch/MOS65XX/MOS65XXDisassembler.c)
     set(HEADERS_SOURCES_MOS65XX
-            arch/MOS65XX/MOS65XXDisassembler.h
-    )
+        arch/MOS65XX/MOS65XXDisassembler.h
+        )
     set(TEST_SOURCES ${TEST_SOURCES} test_mos65xx.c)
 endif ()
 
@@ -513,16 +513,16 @@ endif ()
 
 # Force static runtime libraries
 if (CAPSTONE_BUILD_STATIC_RUNTIME)
-    FOREACH(flag
-	CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO
-	CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT
-	CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-	CMAKE_CXX_FLAGS_DEBUG  CMAKE_CXX_FLAGS_DEBUG_INIT)
-	if (MSVC)
-	    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
-	    SET("${flag}" "${${flag}} /EHsc")
-	endif (MSVC)
-    ENDFOREACH()
+    FOREACH (flag
+             CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO
+             CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT
+             CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO
+             CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG_INIT)
+        if (MSVC)
+            STRING(REPLACE "/MD" "/MT" "${flag}" "${${flag}}")
+            SET("${flag}" "${${flag}} /EHsc")
+        endif (MSVC)
+    ENDFOREACH ()
 endif ()
 
 if (CAPSTONE_BUILD_SHARED)
@@ -532,13 +532,13 @@ if (CAPSTONE_BUILD_SHARED)
 
     if (MSVC)
         set_target_properties(capstone-shared PROPERTIES IMPORT_SUFFIX _dll.lib)
-    else()
+    else ()
         set_target_properties(capstone-shared PROPERTIES
-	    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-	    SOVERSION ${VERSION_MAJOR})
+                              VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+                              SOVERSION ${VERSION_MAJOR})
     endif ()
 
-    if(NOT DEFINED default-target)      # honor `capstone-static` for tests first.
+    if (NOT DEFINED default-target)      # honor `capstone-static` for tests first.
         set(default-target capstone-shared)
         add_definitions(-DCAPSTONE_SHARED)
     endif ()
@@ -557,7 +557,7 @@ if (CAPSTONE_BUILD_TESTS)
         add_executable(${ARM_REGRESS_BIN} "suite/arm/${ARM_REGRESS_TEST}")
         target_link_libraries(${ARM_REGRESS_BIN} ${default-target})
         add_test(NAME "capstone_${ARM_REGRESS_BIN}" COMMAND ${ARM_REGRESS_BIN})
-    endif()
+    endif ()
     # fuzz target built with the tests
     add_executable(fuzz_disasm suite/fuzz/onefile.c suite/fuzz/fuzz_disasm.c)
     target_link_libraries(fuzz_disasm ${default-target})
@@ -618,12 +618,12 @@ if (CAPSTONE_BUILD_SHARED AND CAPSTONE_INSTALL)
 endif ()
 
 if (CAPSTONE_BUILD_SHARED AND CAPSTONE_BUILD_CSTOOL)
-FILE(GLOB CSTOOL_SRC cstool/*.c)
-add_executable(cstool ${CSTOOL_SRC})
-target_link_libraries(cstool ${default-target})
+    FILE(GLOB CSTOOL_SRC cstool/*.c)
+    add_executable(cstool ${CSTOOL_SRC})
+    target_link_libraries(cstool ${default-target})
 
-if (CAPSTONE_INSTALL)
-    install(TARGETS cstool DESTINATION bin)
-    install(FILES ${CMAKE_BINARY_DIR}/capstone.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
-endif ()
+    if (CAPSTONE_INSTALL)
+        install(TARGETS cstool DESTINATION bin)
+        install(FILES ${CMAKE_BINARY_DIR}/capstone.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+    endif ()
 endif ()
