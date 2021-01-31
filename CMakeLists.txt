@@ -120,6 +120,13 @@ target_compile_definitions(capstone PRIVATE $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>
 
 ## Add architecture modules
 
+function(add_capstone_test test)
+    get_filename_component(test_name "${test}" NAME_WE)
+    add_executable(${test_name} ${test} ${ARGN})
+    target_link_libraries(${test_name} PRIVATE capstone::capstone)
+    add_test(NAME "capstone_${test_name}" COMMAND ${test_name})
+endfunction()
+
 function(add_architecture arch)
     # Parse arguments and set defaults
     cmake_parse_arguments("" "" "DEFINE" "SOURCES;HEADERS;TESTS" ${ARGN})
@@ -149,10 +156,7 @@ function(add_architecture arch)
     # Add tests for arch
     if (CAPSTONE_BUILD_TESTS)
         foreach (test IN LISTS _TESTS)
-            string(REGEX REPLACE ".c$" "" test_name ${test})
-            add_executable(${test_name} "tests/${test}")
-            target_link_libraries(${test_name} PRIVATE capstone::capstone)
-            add_test(NAME "capstone_${test_name}" COMMAND ${test_name})
+            add_capstone_test("tests/${test}")
         endforeach ()
     endif ()
 endfunction()
@@ -377,34 +381,17 @@ add_architecture(MOS65XX
 ## Testing
 
 if (CAPSTONE_BUILD_TESTS)
-    # Add general tests
-    add_executable(test_basic tests/test_basic.c)
-    target_link_libraries(test_basic PRIVATE capstone::capstone)
-    add_test(NAME capstone_test_basic COMMAND test_basic)
-
-    add_executable(test_detail tests/test_detail.c)
-    target_link_libraries(test_detail PRIVATE capstone::capstone)
-    add_test(NAME capstone_test_detail COMMAND test_detail)
-
-    add_executable(test_skipdata tests/test_skipdata.c)
-    target_link_libraries(test_skipdata PRIVATE capstone::capstone)
-    add_test(NAME capstone_test_skipdata COMMAND test_skipdata)
-
-    add_executable(test_iter tests/test_iter.c)
-    target_link_libraries(test_iter PRIVATE capstone::capstone)
-    add_test(NAME capstone_test_iter COMMAND test_iter)
+    add_capstone_test(tests/test_basic.c)
+    add_capstone_test(tests/test_detail.c)
+    add_capstone_test(tests/test_skipdata.c)
+    add_capstone_test(tests/test_iter.c)
 
     if (CAPSTONE_ARM_SUPPORT)
-        set(ARM_REGRESS_TEST test_arm_regression.c)
-        STRING(REGEX REPLACE ".c$" "" ARM_REGRESS_BIN ${ARM_REGRESS_TEST})
-        add_executable(${ARM_REGRESS_BIN} "suite/arm/${ARM_REGRESS_TEST}")
-        target_link_libraries(${ARM_REGRESS_BIN} PRIVATE capstone::capstone)
-        add_test(NAME "capstone_${ARM_REGRESS_BIN}" COMMAND ${ARM_REGRESS_BIN})
+        add_capstone_test(suite/arm/test_arm_regression.c)
     endif ()
 
     # fuzz target built with the tests
-    add_executable(fuzz_disasm suite/fuzz/onefile.c suite/fuzz/fuzz_disasm.c)
-    target_link_libraries(fuzz_disasm PRIVATE capstone::capstone)
+    add_capstone_test(suite/fuzz/fuzz_disasm.c suite/fuzz/onefile.c)
 endif ()
 
 ## Installation
@@ -429,8 +416,22 @@ install(EXPORT capstone
         FILE capstone-config.cmake)
 
 if (BUILD_SHARED_LIBS AND CAPSTONE_BUILD_CSTOOL)
-    FILE(GLOB CSTOOL_SRC cstool/*.c)
-    add_executable(cstool ${CSTOOL_SRC})
+    add_executable(cstool
+                   cstool/cstool.c
+                   cstool/cstool_arm.c
+                   cstool/cstool_arm64.c
+                   cstool/cstool_evm.c
+                   cstool/cstool_m68k.c
+                   cstool/cstool_m680x.c
+                   cstool/cstool_mips.c
+                   cstool/cstool_mos65xx.c
+                   cstool/cstool_ppc.c
+                   cstool/cstool_sparc.c
+                   cstool/cstool_systemz.c
+                   cstool/cstool_tms320c64x.c
+                   cstool/cstool_x86.c
+                   cstool/cstool_xcore.c
+                   )
     target_link_libraries(cstool PRIVATE capstone::capstone)
 
     install(TARGETS cstool)
