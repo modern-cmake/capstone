@@ -416,6 +416,13 @@ install(EXPORT capstone
         NAMESPACE capstone::
         FILE capstone-config.cmake)
 
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/capstone-config-version.cmake
+        COMPATIBILITY SameMajorVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/capstone-config-version.cmake
+        DESTINATION ${CAPSTONE_INSTALL_CMAKEDIR})
+
 if (BUILD_SHARED_LIBS AND CAPSTONE_BUILD_CSTOOL)
     add_executable(cstool
                    cstool/cstool.c
