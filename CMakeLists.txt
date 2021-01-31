@@ -391,7 +391,8 @@ if (CAPSTONE_BUILD_TESTS)
     endif ()
 
     # fuzz target built with the tests
-    add_capstone_test(suite/fuzz/fuzz_disasm.c suite/fuzz/onefile.c)
+    add_executable(fuzz_disasm suite/fuzz/fuzz_disasm.c suite/fuzz/onefile.c)
+    target_link_libraries(fuzz_disasm PRIVATE capstone::capstone)
 endif ()
 
 ## Installation
