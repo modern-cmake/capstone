@@ -36,6 +36,10 @@ foreach (arch ${supported_architectures})
     endif ()
 endforeach ()
 
+if (BUILD_SHARED_LIBS)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif ()
+
 if (CAPSTONE_BUILD_STATIC_RUNTIME)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif ()
