@@ -28,7 +28,7 @@ endforeach ()
 add_library(capstone_config INTERFACE)
 target_include_directories(capstone_config INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
 
-foreach (arch ${supported_architectures})
+foreach (arch IN LISTS supported_architectures)
     set(option_name "CAPSTONE_${arch}_SUPPORT")
     if (${option_name})
         message(STATUS "Enabling ${option_name}")
@@ -445,6 +445,19 @@ if (BUILD_SHARED_LIBS AND CAPSTONE_BUILD_CSTOOL)
                    cstool/cstool_xcore.c
                    )
     target_link_libraries(cstool PRIVATE capstone::capstone)
+
+    # Fix RPATH for cstool
+    file(RELATIVE_PATH rel_lib_dir
+         ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}
+         ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
+
+    if (APPLE)
+        set(rpath @loader_path)
+    else ()
+        set(rpath $ORIGIN)
+    endif ()
+
+    set_target_properties(cstool PROPERTIES INSTALL_RPATH "${rpath};${rpath}/${rel_lib_dir}")
 
     install(TARGETS cstool)
 endif ()
